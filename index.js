@@ -1,3 +1,20 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const OpenAI = require('openai');
+const { twiml: { VoiceResponse } } = require('twilio');
+
+require('dotenv').config();
+
+const app = express();
+const port = process.env.PORT || 10000;
+
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 app.post('/voice', async (req, res) => {
   try {
     const transcript = req.body.SpeechResult || 'Hello';
@@ -14,15 +31,7 @@ app.post('/voice', async (req, res) => {
     const aiResponse = completion.choices[0].message.content;
 
     const response = new VoiceResponse();
-    const gather = response.gather({
-      input: 'speech',
-      timeout: 5,
-      speechTimeout: 'auto',
-      action: '/voice', // same route to handle the next input
-      method: 'POST',
-    });
-
-    gather.say(aiResponse);
+    response.say(aiResponse);
 
     res.type('text/xml');
     res.send(response.toString());
@@ -34,4 +43,8 @@ app.post('/voice', async (req, res) => {
     res.type('text/xml');
     res.send(response.toString());
   }
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
