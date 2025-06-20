@@ -37,7 +37,7 @@ app.post('/voice', async (req, res) => {
     res.send(response.toString());
 
   } catch (error) {
-    console.error("Error in /voice:", error.message);
+    console.error("Error in /voice:", error);
     const response = new VoiceResponse();
     response.say("Sorry, there was an error processing your request. Please try again later.");
     res.type('text/xml');
