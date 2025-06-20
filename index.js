@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const OpenAI = require('openai');
 const { twiml: { VoiceResponse } } = require('twilio');
+
 require('dotenv').config();
 
 const app = express();
@@ -10,50 +11,49 @@ const port = process.env.PORT || 10000;
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 app.post('/voice', async (req, res) => {
-  const transcript = req.body.SpeechResult || 'Hello';
-  const twiml = new VoiceResponse();
-
-  // End the call if the user says "no", "that's all", etc.
-  const endWords = ['no', 'nope', 'nothing', "that's all", 'we’re good', 'nah'];
-  const lowerTranscript = transcript.trim().toLowerCase();
-
-  if (endWords.some(word => lowerTranscript.includes(word))) {
-    twiml.say("Okay! Thanks for calling. Have a great day!");
-    twiml.hangup();
-    res.type('text/xml');
-    return res.send(twiml.toString());
-  }
+  const response = new VoiceResponse();
 
   try {
-    const prompt = `Act as a helpful and friendly receptionist. Someone said: "${transcript}". Respond politely and ask if there's anything else you can help with.`;
+    const transcript = req.body.SpeechResult?.toLowerCase().trim() || '';
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        { role: "system", content: "You are a helpful AI voice assistant for a small business." },
-        { role: "user", content: prompt },
-      ],
-    });
+    // Check if user wants to end the call
+    if (transcript.includes('no') || transcript.includes('nothing') || transcript.includes('that’s all')) {
+      response.say("Okay, have a great day!");
+      response.hangup();
+    } else {
+      // AI generates a reply to the question
+      const now = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' });
+      const prompt = `The current time is ${now}. A customer said: "${transcript}". Respond like a friendly receptionist.`;
 
-    const aiResponse = completion.data.choices[0].message.content;
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4", // or "gpt-3.5-turbo"
+        messages: [
+          { role: "system", content: "You are a helpful AI voice assistant for a small business." },
+          { role: "user", content: prompt },
+        ],
+      });
 
-    twiml.gather({
-      input: 'speech',
-      timeout: 5,
-      action: '/voice',
-    }).say(aiResponse);
+      const aiResponse = completion.choices[0].message.content;
+
+      response.say(aiResponse);
+      response.pause({ length: 1 });
+      response.say("Is there anything else I can help you with?");
+      response.listen({ timeout: 5 });
+    }
 
     res.type('text/xml');
-    res.send(twiml.toString());
+    res.send(response.toString());
 
   } catch (error) {
     console.error("Error in /voice:", error.message);
-    twiml.say("Sorry, there was an error processing your request.");
+    response.say("Sorry, there was an error processing your request. Please try again later.");
     res.type('text/xml');
-    res.send(twiml.toString());
+    res.send(response.toString());
   }
 });
 
