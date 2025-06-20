@@ -18,30 +18,29 @@ const openai = new OpenAI({
 app.post('/voice', async (req, res) => {
   try {
     const transcript = req.body.SpeechResult || 'Hello';
-    const prompt = `Act as a helpful receptionist. Someone said: "${transcript}". Respond politely.`;
+    const prompt = `Act as a friendly receptionist. Someone said: "${transcript}". Reply politely.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo', // use 'gpt-4' only if you're sure your key has access
+      model: 'gpt-3.5-turbo',
       messages: [
-        { role: 'system', content: 'You are a friendly AI phone receptionist for a small business.' },
-        { role: 'user', content: prompt }
-      ]
+        { role: 'system', content: 'You are a helpful AI voice assistant for a small business.' },
+        { role: 'user', content: prompt },
+      ],
     });
 
-    // Safely handle undefined responses
-    const responseText = completion?.choices?.[0]?.message?.content || "I'm sorry, I didn't catch that.";
+    const aiResponse = completion.choices[0].message.content;
 
     const response = new VoiceResponse();
-    response.say(responseText);
+    response.say(aiResponse);
     response.pause({ length: 1 });
     response.say("Is there anything else I can help you with?");
-    response.listen({ timeout: 5 });
+    response.listen(); // allows the user to speak again
 
     res.type('text/xml');
     res.send(response.toString());
 
   } catch (error) {
-    console.error('Error in /voice:', error);
+    console.error("❌ Error in /voice:", error.message);
     const response = new VoiceResponse();
     response.say("Sorry, there was an error processing your request. Please try again later.");
     res.type('text/xml');
@@ -49,6 +48,7 @@ app.post('/voice', async (req, res) => {
   }
 });
 
+// ✅ CORRECT SERVER START
 app.listen(port, () => {
   console.log(`✅ Server is running on port ${port}`);
 });
