@@ -21,10 +21,10 @@ app.post('/voice', async (req, res) => {
     const prompt = `Act as a friendly receptionist. Someone said: "${transcript}". Reply politely.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: "gpt-3.5-turbo", // use gpt-4 if confirmed available
       messages: [
-        { role: 'system', content: 'You are a helpful AI voice assistant for a small business.' },
-        { role: 'user', content: prompt },
+        { role: "system", content: "You are a helpful AI voice assistant for a small business." },
+        { role: "user", content: prompt },
       ],
     });
 
@@ -33,8 +33,7 @@ app.post('/voice', async (req, res) => {
     const response = new VoiceResponse();
     response.say(aiResponse);
     response.pause({ length: 1 });
-    response.say("Is there anything else I can help you with?");
-    response.listen(); // allows the user to speak again
+    response.say("You can say something else or hang up anytime.");
 
     res.type('text/xml');
     res.send(response.toString());
@@ -48,7 +47,6 @@ app.post('/voice', async (req, res) => {
   }
 });
 
-// ✅ CORRECT SERVER START
 app.listen(port, () => {
   console.log(`✅ Server is running on port ${port}`);
 });
