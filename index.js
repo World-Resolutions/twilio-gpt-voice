@@ -2,7 +2,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const OpenAI = require('openai');
 const { twiml: { VoiceResponse } } = require('twilio');
-
 require('dotenv').config();
 
 const app = express();
@@ -16,32 +15,36 @@ const openai = new OpenAI({
 });
 
 app.post('/voice', async (req, res) => {
-  try {
-    const transcript = req.body.SpeechResult || 'Hello';
-    const prompt = `Act as a friendly receptionist. Someone said: "${transcript}". Reply politely.`;
+  const transcript = req.body.SpeechResult || 'Hello';
+  const prompt = `Act as a friendly receptionist. Someone said: "${transcript}". Reply clearly and helpfully.`;
 
+  try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: 'gpt-3.5-turbo',
       messages: [
-        { role: "system", content: "You are a helpful AI voice assistant for a small business." },
-        { role: "user", content: prompt },
-      ],
+        { role: 'system', content: 'You are a helpful AI receptionist for a business answering the phone.' },
+        { role: 'user', content: prompt }
+      ]
     });
 
-    const aiResponse = completion.choices[0].message.content;
+    const responseText = completion.choices[0].message.content;
 
-    const response = new VoiceResponse();
-    response.say(aiResponse);
+    const twiml = new VoiceResponse();
+    twiml.say({ voice: 'Polly.Joanna', language: 'en-US' }, responseText);
+    twiml.pause({ length: 2 });
+    twiml.say("Is there anything else I can help you with?");
+    twiml.pause({ length: 5 });
 
     res.type('text/xml');
-    res.send(response.toString());
+    res.send(twiml.toString());
 
   } catch (error) {
     console.error("Error in /voice:", error.message);
-    const response = new VoiceResponse();
-    response.say("Sorry, there was an error processing your request. Please try again later.");
+
+    const twiml = new VoiceResponse();
+    twiml.say("Sorry, there was an error processing your request. Please try again later.");
     res.type('text/xml');
-    res.send(response.toString());
+    res.send(twiml.toString());
   }
 });
 
