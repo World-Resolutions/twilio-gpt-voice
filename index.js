@@ -16,23 +16,32 @@ const openai = new OpenAI({
 });
 
 app.post('/voice', async (req, res) => {
-  const transcript = req.body.SpeechResult || 'Hello';
-  const prompt = `Act as a friendly AI receptionist. Someone said: "${transcript}". Respond politely and clearly.`;
+  try {
+    const transcript = req.body.SpeechResult || req.body.Body || 'Hello';
+    const prompt = `Act as a friendly AI receptionist. Someone said: "${transcript}". Respond politely and clearly.`;
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: [
-      { role: "system", content: "You are a helpful phone assistant." },
-      { role: "user", content: transcript }
-    ]
-  });
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o", // ✅ Correct model name
+      messages: [
+        { role: "system", content: "You are a helpful phone assistant." },
+        { role: "user", content: transcript }
+      ],
+    });
 
-  const response = completion.choices[0].message.content;
+    const response = completion.choices[0].message.content;
 
-  const twiml = new VoiceResponse();
-  twiml.say(response);
-  res.type('text/xml');
-  res.send(twiml.toString());
+    const twiml = new VoiceResponse();
+    twiml.say(response);
+    res.type('text/xml');
+    res.send(twiml.toString());
+  } catch (error) {
+    console.error('Error handling voice request:', error);
+
+    const twiml = new VoiceResponse();
+    twiml.say("Sorry, there was an error processing your request.");
+    res.type('text/xml');
+    res.send(twiml.toString());
+  }
 });
 
 app.listen(port, () => {
