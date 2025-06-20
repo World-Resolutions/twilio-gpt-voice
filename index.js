@@ -10,45 +10,51 @@ const port = process.env.PORT || 10000;
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 app.post('/voice', async (req, res) => {
-  const vr = new VoiceResponse();
+  const transcript = req.body.SpeechResult || 'Hello';
+  const twiml = new VoiceResponse();
 
-  try {
-    const transcript = req.body.SpeechResult || 'Hello';
-    const prompt = `Act as a friendly receptionist. Someone said: "${transcript}". Reply politely.`;
+  // End the call if the user says "no", "that's all", etc.
+  const endWords = ['no', 'nope', 'nothing', "that's all", 'we’re good', 'nah'];
+  const lowerTranscript = transcript.trim().toLowerCase();
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4", // or "gpt-3.5-turbo" if preferred
-      messages: [
-        { role: "system", content: "You are a helpful AI voice assistant for a small business." },
-        { role: "user", content: prompt }
-      ]
-    });
-
-    const aiResponse = completion.choices?.[0]?.message?.content || "Sorry, I didn't catch that.";
-
-    const gather = vr.gather({
-      input: 'speech',
-      timeout: 5,
-      speechTimeout: 'auto',
-      action: '/voice',
-      method: 'POST'
-    });
-
-    gather.say(aiResponse);
-    vr.redirect('/voice'); // In case no input is given
-
-  } catch (error) {
-    console.error("Error in /voice:", error);
-    vr.say("Sorry, there was an error processing your request. Please try again later.");
+  if (endWords.some(word => lowerTranscript.includes(word))) {
+    twiml.say("Okay! Thanks for calling. Have a great day!");
+    twiml.hangup();
+    res.type('text/xml');
+    return res.send(twiml.toString());
   }
 
-  res.type('text/xml');
-  res.send(vr.toString());
+  try {
+    const prompt = `Act as a helpful and friendly receptionist. Someone said: "${transcript}". Respond politely and ask if there's anything else you can help with.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: "You are a helpful AI voice assistant for a small business." },
+        { role: "user", content: prompt },
+      ],
+    });
+
+    const aiResponse = completion.data.choices[0].message.content;
+
+    twiml.gather({
+      input: 'speech',
+      timeout: 5,
+      action: '/voice',
+    }).say(aiResponse);
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+
+  } catch (error) {
+    console.error("Error in /voice:", error.message);
+    twiml.say("Sorry, there was an error processing your request.");
+    res.type('text/xml');
+    res.send(twiml.toString());
+  }
 });
 
 app.listen(port, () => {
