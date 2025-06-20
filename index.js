@@ -16,51 +16,40 @@ const openai = new OpenAI({
 });
 
 app.post('/voice', async (req, res) => {
-  const response = new VoiceResponse();
-  const userInput = req.body.SpeechResult?.toLowerCase().trim() || '';
+  const voiceResponse = new VoiceResponse();
 
   try {
-    // If user says "no", "nothing", or similar, end the call
-    if (
-      userInput.includes("no") ||
-      userInput.includes("nothing") ||
-      userInput.includes("that’s all")
-    ) {
-      response.say("Okay, have a great day!");
-      response.hangup();
-    } else {
-      // Ask OpenAI for a response
-      const now = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' });
+    const transcript = req.body.SpeechResult || '';
+    const prompt = transcript.trim()
+      ? `You are a friendly AI receptionist. The user said: "${transcript}". Reply conversationally and briefly.`
+      : "Greet the caller and ask how you can help.";
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4", // Use "gpt-3.5-turbo" if you want faster & cheaper
-        messages: [
-          { role: "system", content: "You are a helpful AI receptionist for a small business." },
-          { role: "user", content: `The current time is ${now}. A customer asked: "${userInput}".` },
-        ],
-      });
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        { role: "system", content: "You are a helpful AI receptionist who speaks clearly and politely on the phone." },
+        { role: "user", content: prompt }
+      ]
+    });
 
-      const aiReply = completion.choices[0].message.content;
+    const aiResponse = completion.choices[0].message.content;
 
-      response.say(aiReply);
-      response.pause({ length: 1 });
+    voiceResponse.say({ voice: 'Polly.Joanna', language: 'en-US' }, aiResponse);
+    voiceResponse.gather({
+      input: 'speech',
+      timeout: 5,
+      speechTimeout: 'auto',
+      action: '/voice',
+      method: 'POST'
+    });
 
-      const gather = response.gather({
-        input: 'speech',
-        timeout: 5,
-      });
-      gather.say("Is there anything else I can help you with?");
-    }
-
-    res.type('text/xml');
-    res.send(response.toString());
-
-  } catch (error) {
-    console.error("❌ Error in /voice:", error.message);
-    response.say("There was an error processing your request. Please try again later.");
-    res.type('text/xml');
-    res.send(response.toString());
+  } catch (err) {
+    console.error("❌ Error in /voice:", err.message);
+    voiceResponse.say("Sorry, something went wrong. Please try again later.");
   }
+
+  res.type('text/xml');
+  res.send(voiceResponse.toString());
 });
 
 app.listen(port, () => {
