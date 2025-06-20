@@ -18,35 +18,17 @@ const openai = new OpenAI({
 app.post('/voice', async (req, res) => {
   try {
     const transcript = req.body.SpeechResult || 'Hello';
-    const prompt = `Act as a friendly receptionist. Someone said: "${transcript}". Reply politely.`;
+    const prompt = `Act as a friendly, helpful receptionist. A caller just said: "${transcript}". Respond clearly and ask how you can help next.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // use gpt-4 if confirmed available
+      model: "gpt-4", // change to gpt-3.5-turbo if needed
       messages: [
-        { role: "system", content: "You are a helpful AI voice assistant for a small business." },
-        { role: "user", content: prompt },
+        { role: "system", content: "You are a polite and helpful AI receptionist for a small business." },
+        { role: "user", content: prompt }
       ],
     });
 
-    const aiResponse = completion.choices[0].message.content;
+    const aiReply = completion.data.choices[0].message.content;
 
     const response = new VoiceResponse();
-    response.say(aiResponse);
-    response.pause({ length: 1 });
-    response.say("You can say something else or hang up anytime.");
-
-    res.type('text/xml');
-    res.send(response.toString());
-
-  } catch (error) {
-    console.error("❌ Error in /voice:", error.message);
-    const response = new VoiceResponse();
-    response.say("Sorry, there was an error processing your request. Please try again later.");
-    res.type('text/xml');
-    res.send(response.toString());
-  }
-});
-
-app.listen(port, () => {
-  console.log(`✅ Server is running on port ${port}`);
-});
+    response.say({ voice: 'Polly.Joanna', language: 'en-US' },
