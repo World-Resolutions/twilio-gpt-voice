@@ -20,11 +20,14 @@ app.post('/voice', async (req, res) => {
   const prompt = `Act as a friendly AI receptionist. Someone said: "${transcript}". Respond politely and clearly.`;
 
   const completion = await openai.chat.completions.create({
-  model: "gpt-4",
-  messages: [...],
-});
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: "You are a helpful phone assistant." },
+      { role: "user", content: transcript }
+    ]
+  });
 
-  const response = completion.data.choices[0].message.content;
+  const response = completion.choices[0].message.content;
 
   const twiml = new VoiceResponse();
   twiml.say(response);
