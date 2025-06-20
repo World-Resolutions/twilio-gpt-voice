@@ -2,7 +2,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const OpenAI = require('openai');
 const { twiml: { VoiceResponse } } = require('twilio');
-
 require('dotenv').config();
 
 const app = express();
@@ -21,14 +20,14 @@ app.post('/voice', async (req, res) => {
     const prompt = `Act as a friendly receptionist. Someone said: "${transcript}". Reply politely.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // Change to gpt-4 if your key supports it
+      model: 'gpt-3.5-turbo', // Change to gpt-4 if you have access
       messages: [
-        { role: "system", content: "You are a helpful AI voice assistant for a small business." },
-        { role: "user", content: prompt },
+        { role: 'system', content: 'You are a helpful AI voice assistant for a small business.' },
+        { role: 'user', content: prompt },
       ],
     });
 
-    const aiResponse = completion.data.choices[0].message.content;
+    const aiResponse = completion.choices?.[0]?.message?.content || "Sorry, I couldn’t process your request.";
 
     const response = new VoiceResponse();
     response.say(aiResponse);
@@ -37,7 +36,7 @@ app.post('/voice', async (req, res) => {
     res.send(response.toString());
 
   } catch (error) {
-    console.error("Error in /voice:", error);
+    console.error("Error in /voice:", error.message);
     const response = new VoiceResponse();
     response.say("Sorry, there was an error processing your request. Please try again later.");
     res.type('text/xml');
