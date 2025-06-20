@@ -17,24 +17,40 @@ const openai = new OpenAI({
 app.post('/voice', async (req, res) => {
   try {
     const transcript = req.body.SpeechResult || 'Hello';
-    const prompt = `Act as a friendly receptionist. A caller said: "${transcript}". Reply politely and ask what else you can help with.`;
+    const prompt = `Act as a helpful AI receptionist. A caller said: "${transcript}". Respond kindly and ask how else you can assist.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4", // or "gpt-3.5-turbo" if you prefer
+      model: "gpt-4", // or "gpt-3.5-turbo" if you want faster/cheaper
       messages: [
-        { role: "system", content: "You are a helpful AI voice assistant." },
-        { role: "user", content: prompt }
+        { role: "system", content: "You are a helpful AI receptionist that responds clearly and professionally." },
+        { role: "user", content: prompt },
       ],
     });
 
     const aiResponse = completion.data.choices[0].message.content;
 
-    const response = new VoiceResponse();
-    response.say({ voice: 'Polly.Joanna', language: 'en-US' }, aiResponse);
+    const twiml = new VoiceResponse();
+    twiml.say({ voice: 'Polly.Joanna' }, aiResponse); // You can change to another voice later
 
-    response.gather({
+    // Continue listening after response
+    twiml.gather({
       input: 'speech',
       action: '/voice',
       method: 'POST',
       speechTimeout: 'auto'
     });
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+  } catch (error) {
+    console.error("Error in /voice:", error);
+    const twiml = new VoiceResponse();
+    twiml.say("Sorry, something went wrong. Please try again later.");
+    res.type('text/xml');
+    res.send(twiml.toString());
+  }
+});
+
+app.listen(port, () => {
+  console.log(`✅ Server is running on port ${port}`);
+});
