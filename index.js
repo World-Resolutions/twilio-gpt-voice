@@ -15,37 +15,49 @@ const openai = new OpenAI({
 });
 
 app.post('/voice', async (req, res) => {
-  const transcript = req.body.SpeechResult || 'Hello';
-  const prompt = `Act as a friendly receptionist. Someone said: "${transcript}". Reply clearly and helpfully.`;
+  const twiml = new VoiceResponse();
+  const userSaid = req.body.SpeechResult;
 
-  try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: 'You are a helpful AI receptionist for a business answering the phone.' },
-        { role: 'user', content: prompt }
-      ]
+  if (!userSaid) {
+    // First interaction: greet and gather voice input
+    const gather = twiml.gather({
+      input: 'speech',
+      action: '/voice',
+      method: 'POST',
+      speechTimeout: 'auto'
     });
+    gather.say('Hello! How can I assist you today?');
 
-    const responseText = completion.choices[0].message.content;
+  } else {
+    // Handle user response with OpenAI
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: 'You are a helpful AI phone assistant.' },
+          { role: 'user', content: userSaid }
+        ]
+      });
 
-    const twiml = new VoiceResponse();
-    twiml.say({ voice: 'Polly.Joanna', language: 'en-US' }, responseText);
-    twiml.pause({ length: 2 });
-    twiml.say("Is there anything else I can help you with?");
-    twiml.pause({ length: 5 });
+      const responseText = completion.data.choices[0].message.content;
 
-    res.type('text/xml');
-    res.send(twiml.toString());
+      const gather = twiml.gather({
+        input: 'speech',
+        action: '/voice',
+        method: 'POST',
+        speechTimeout: 'auto'
+      });
+      gather.say(responseText);
+      twiml.pause({ length: 1 });
 
-  } catch (error) {
-    console.error("Error in /voice:", error.message);
-
-    const twiml = new VoiceResponse();
-    twiml.say("Sorry, there was an error processing your request. Please try again later.");
-    res.type('text/xml');
-    res.send(twiml.toString());
+    } catch (error) {
+      console.error("OpenAI Error:", error.message);
+      twiml.say("Sorry, something went wrong while processing your request.");
+    }
   }
+
+  res.type('text/xml');
+  res.send(twiml.toString());
 });
 
 app.listen(port, () => {
