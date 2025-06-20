@@ -19,10 +19,10 @@ app.post('/voice', async (req, res) => {
   const transcript = req.body.SpeechResult || 'Hello';
   const prompt = `Act as a friendly AI receptionist. Someone said: "${transcript}". Respond politely and clearly.`;
 
-  const completion = await openai.createChatCompletion({
-    model: 'gpt-4',
-    messages: [{ role: 'user', content: prompt }],
-  });
+  const completion = await openai.chat.completions.create({
+  model: "gpt-4",
+  messages: [...],
+});
 
   const response = completion.data.choices[0].message.content;
 
