@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const OpenAI = require('openai');
 const { twiml: { VoiceResponse } } = require('twilio');
+
 require('dotenv').config();
 
 const app = express();
@@ -15,51 +16,39 @@ const openai = new OpenAI({
 });
 
 app.post('/voice', async (req, res) => {
-  const twiml = new VoiceResponse();
-  const userSaid = req.body.SpeechResult;
+  try {
+    const transcript = req.body.SpeechResult || 'Hello';
+    const prompt = `Act as a helpful receptionist. Someone said: "${transcript}". Respond politely.`;
 
-  if (!userSaid) {
-    // First interaction: greet and gather voice input
-    const gather = twiml.gather({
-      input: 'speech',
-      action: '/voice',
-      method: 'POST',
-      speechTimeout: 'auto'
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo', // use 'gpt-4' only if you're sure your key has access
+      messages: [
+        { role: 'system', content: 'You are a friendly AI phone receptionist for a small business.' },
+        { role: 'user', content: prompt }
+      ]
     });
-    gather.say('Hello! How can I assist you today?');
 
-  } else {
-    // Handle user response with OpenAI
-    try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          { role: 'system', content: 'You are a helpful AI phone assistant.' },
-          { role: 'user', content: userSaid }
-        ]
-      });
+    // Safely handle undefined responses
+    const responseText = completion?.choices?.[0]?.message?.content || "I'm sorry, I didn't catch that.";
 
-      const responseText = completion.data.choices[0].message.content;
+    const response = new VoiceResponse();
+    response.say(responseText);
+    response.pause({ length: 1 });
+    response.say("Is there anything else I can help you with?");
+    response.listen({ timeout: 5 });
 
-      const gather = twiml.gather({
-        input: 'speech',
-        action: '/voice',
-        method: 'POST',
-        speechTimeout: 'auto'
-      });
-      gather.say(responseText);
-      twiml.pause({ length: 1 });
+    res.type('text/xml');
+    res.send(response.toString());
 
-    } catch (error) {
-      console.error("OpenAI Error:", error.message);
-      twiml.say("Sorry, something went wrong while processing your request.");
-    }
+  } catch (error) {
+    console.error('Error in /voice:', error);
+    const response = new VoiceResponse();
+    response.say("Sorry, there was an error processing your request. Please try again later.");
+    res.type('text/xml');
+    res.send(response.toString());
   }
-
-  res.type('text/xml');
-  res.send(twiml.toString());
 });
 
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`✅ Server is running on port ${port}`);
 });
