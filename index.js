@@ -15,40 +15,35 @@ const openai = new OpenAI({
 });
 
 app.post('/voice', async (req, res) => {
+  const twiml = new VoiceResponse();
+
   try {
     const transcript = req.body.SpeechResult || 'Hello';
-    const prompt = `Act as a helpful AI receptionist. A caller said: "${transcript}". Respond kindly and ask how else you can assist.`;
+    const prompt = `Act as a friendly receptionist. Someone said: "${transcript}". Reply politely.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4", // or "gpt-3.5-turbo" if you want faster/cheaper
+      model: "gpt-4", // Or "gpt-3.5-turbo" if you want
       messages: [
-        { role: "system", content: "You are a helpful AI receptionist that responds clearly and professionally." },
-        { role: "user", content: prompt },
-      ],
+        { role: "system", content: "You are a helpful AI voice assistant for a business." },
+        { role: "user", content: prompt }
+      ]
     });
 
-    const aiResponse = completion.data.choices[0].message.content;
+    const aiResponse = completion.choices?.[0]?.message?.content || "Sorry, I had trouble understanding. Could you repeat that?";
+    console.log("AI response:", aiResponse);
 
-    const twiml = new VoiceResponse();
-    twiml.say({ voice: 'Polly.Joanna' }, aiResponse); // You can change to another voice later
+    twiml.say(aiResponse);
+    twiml.pause({ length: 1 });
+    twiml.say("Is there anything else I can help you with?");
+    twiml.listen({ timeout: 5 });
 
-    // Continue listening after response
-    twiml.gather({
-      input: 'speech',
-      action: '/voice',
-      method: 'POST',
-      speechTimeout: 'auto'
-    });
-
-    res.type('text/xml');
-    res.send(twiml.toString());
   } catch (error) {
     console.error("Error in /voice:", error);
-    const twiml = new VoiceResponse();
-    twiml.say("Sorry, something went wrong. Please try again later.");
-    res.type('text/xml');
-    res.send(twiml.toString());
+    twiml.say("Sorry, there was an error processing your request. Please try again later.");
   }
+
+  res.type('text/xml');
+  res.send(twiml.toString());
 });
 
 app.listen(port, () => {
