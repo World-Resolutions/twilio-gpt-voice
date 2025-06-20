@@ -21,14 +21,14 @@ app.post('/voice', async (req, res) => {
     const prompt = `Act as a friendly receptionist. Someone said: "${transcript}". Reply politely.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // Use this unless you're 100% sure you can access GPT-4
+      model: "gpt-3.5-turbo", // Change to gpt-4 if your key supports it
       messages: [
         { role: "system", content: "You are a helpful AI voice assistant for a small business." },
         { role: "user", content: prompt },
       ],
     });
 
-    const aiResponse = completion.choices[0].message.content;
+    const aiResponse = completion.data.choices[0].message.content;
 
     const response = new VoiceResponse();
     response.say(aiResponse);
